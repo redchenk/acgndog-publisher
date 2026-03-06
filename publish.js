@@ -2,12 +2,84 @@
 
 const { chromium } = require('playwright');
 const https = require('https');
+const fs = require('fs');
+const path = require('path');
 
 const HALO_URL = 'https://www.redchenk.com';
 const HALO_TOKEN = 'pat_eyJraWQiOiJFMDIxelh2WDlCS2o1RkpMLUh2TTVtc21DS1pLQ0psaV9QeEdxQlBZaDRBIiwiYWxnIjoiUlMyNTYifQ.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjkwOTAiLCJzdWIiOiJ1cHBlciIsImlhdCI6MTc3Mjc2NjAzNCwianRpIjoiZjM5MzEyMDEtYzc4Ni04MzMwLTQ4ZDAtNjBhZTU2NDY0YTQyIiwicGF0X25hbWUiOiJwYXQtOThycWRkc3IifQ.oTOR3QpWx6j0MFQ5gsTVW18z15CNTNTGwIxOTu3T45GQ6VYkjn96IdUGiW9JFzMq080k31kW0jXycfzY3LUD1AnSfwmhmuDDq2pIa0gkCMJtr_zvWpcJG6NyJpDpdbeqdtWggR1JdYz_JSNwvCnlu_M18CVoj1v4rE57lUpdCakYXy3EVkPQk3oaSMKnmXl0IuHJN2YO-fi5lVsyqJNqgbiBK37T8ewj0UcIxSSIeB029BEl31Q1ThfoADEuf1AzXG_Ve3WhJ8V7g5F_oT9fUSDJg2zBFDnm9oaZyoOpIpid2CVYMDRBqCNxZghNijiFUtxZyLPvSSH3hIhN6VaiCyuoU1wvdjCTVo6LeCA4cEn08xvydUR1p_rg6wyiO8J7h4onBn-UxoxVaHKSuHPI-r4885jzhA58ZRQaV29ByMdoIYzjAESnXUz2KgxzkhQbhrE5qFEhEF0vJkqR0yIC0SsGoV15yiXlmtR5-0vISFpDkVMeVbWz3CFQgG5ca_5X7JwjIlvTUK6LoBaivv5S-WL9SCi-JzfXKxdyYbwdAaM9NRNATxm_YrcK2RRkMVltnYK2tRm7ZNsO1dqelDCUSTmEGFnYnu7BFZHUtp2mQcIubbJ6XXiH5xSmWyAHGoGizTRyNQPkxlCjey5QTovGqjrsb-l-dL_UsAwm1Tv3aDY';
 const SOURCE_URL = 'https://www.acgndog.com';
 
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
+
+// 记录文件路径
+const PUBLISHED_FILE = path.join(__dirname, 'published.json');
+
+// 读取已发布文章列表
+function getPublishedArticles() {
+  try {
+    if (fs.existsSync(PUBLISHED_FILE)) {
+      const data = fs.readFileSync(PUBLISHED_FILE, 'utf8');
+      return new Set(JSON.parse(data));
+    }
+  } catch(e) {}
+  return new Set();
+}
+
+// 保存已发布文章
+function savePublishedArticle(url) {
+  try {
+    const published = getPublishedArticles();
+    published.add(url);
+    fs.writeFileSync(PUBLISHED_FILE, JSON.stringify([...published], null, 2));
+  } catch(e) {
+    console.log('保存记录失败:', e.message);
+  }
+}
+
+// 从Halo获取已发布文章标题
+async function getExistingTitles() {
+  return new Promise((resolve) => {
+    const titles = new Set();
+    const makeRequest = (page = 0) => {
+      const u = new URL('/apis/api.console.halo.run/v1alpha1/posts', HALO_URL);
+      u.searchParams.set('size', '100');
+      u.searchParams.set('page', page.toString());
+      
+      const req = https.request({
+        hostname: u.hostname, port: 443, path: u.pathname + u.search,
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${HALO_TOKEN}` }
+      }, res => {
+        let b = '';
+        res.on('data', c => b += c);
+        res.on('end', () => {
+          try {
+            const data = JSON.parse(b);
+            if (data.items && data.items.length > 0) {
+              data.items.forEach(item => {
+                if (item.spec && item.spec.title) {
+                  titles.add(item.spec.title);
+                }
+              });
+              if (data.hasNext) {
+                makeRequest(page + 1);
+              } else {
+                resolve(titles);
+              }
+            } else {
+              resolve(titles);
+            }
+          } catch(e) {
+            resolve(titles);
+          }
+        });
+      });
+      req.on('error', () => resolve(titles));
+      req.end();
+    };
+    makeRequest(0);
+  });
+}
 
 // 获取文章详情
 async function getDetail(url) {
@@ -95,6 +167,8 @@ async function publish(article) {
       console.log(`[${article.title}] 草稿保存成功! ID: ${pid}`);
       await setCoverApi(pid, article.cover);
       console.log(`[${article.title}] 封面图设置完成`);
+      // 保存到已发布列表
+      savePublishedArticle(article.url);
     } else {
       console.log(`[${article.title}] 保存失败`);
     }
@@ -137,7 +211,7 @@ async function getList() {
         if (a.href && a.href.includes('.html') && !a.href.includes('category')) 
           rs.push({t: a.textContent.trim(), l: a.href});
       }); 
-      return rs.slice(0, 10);
+      return rs.slice(0, 20);
     });
     
     await br.close(); 
@@ -151,22 +225,49 @@ async function getList() {
 
 async function main() {
   console.log('=== 开始爬取任务 ===', new Date().toISOString());
+  
+  // 获取已发布文章
+  console.log('检查已发布文章...');
+  const publishedUrls = getPublishedArticles();
+  const existingTitles = await getExistingTitles();
+  console.log(`本地记录: ${publishedUrls.size} 篇, Halo已有: ${existingTitles.size} 篇`);
+  
   const arts = await getList();
   console.log(`获取到 ${arts.length} 篇文章`);
   
   if (arts.length === 0) return;
   
-  for (let i = 0; i < Math.min(3, arts.length); i++) {
-    console.log(`\n正在处理: ${arts[i].t}`);
-    const d = await getDetail(arts[i].l);
+  let publishedCount = 0;
+  
+  for (let i = 0; i < arts.length; i++) {
+    const art = arts[i];
+    
+    // 检查是否已发布（通过URL或标题）
+    if (publishedUrls.has(art.l) || existingTitles.has(art.t)) {
+      console.log(`[跳过] 已存在: ${art.t}`);
+      continue;
+    }
+    
+    console.log(`\n正在处理: ${art.t}`);
+    const d = await getDetail(art.l);
     if (!d || !d.title || !d.cover) { 
       console.log('跳过无效文章'); 
       continue; 
     }
+    
     await publish(d);
     await wait(5000);
+    publishedCount++;
+    
+    // 每次只发布1篇新文章
+    if (publishedCount >= 1) break;
   }
-  console.log('\n=== 任务完成 ===');
+  
+  if (publishedCount === 0) {
+    console.log('\n没有新文章需要发布！');
+  } else {
+    console.log(`\n=== 任务完成，发布了 ${publishedCount} 篇新文章 ===`);
+  }
   process.exit(0);
 }
 
