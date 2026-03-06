@@ -202,7 +202,9 @@ async function publish(article) {
     console.log(`[${article.title}] 标题设置完成`);
     
     // 编辑器
-    await p.click('[contenteditable="true"]'); await wait(1000);
+    const editor = p.locator('.ProseMirror').first();
+    await editor.click();
+    await wait(500);
     
     // 内容 - 原文链接使用超链接
     let content = article.title + '\n\n';
@@ -212,7 +214,7 @@ async function publish(article) {
     content += '---\n\n';
     content += '原文链接：<a href="' + article.url + '" target="_blank">' + article.url + '</a>';
     
-    await p.keyboard.type(content, {delay: 10});
+    await editor.fill(content);
     console.log(`[${article.title}] 内容设置完成`);
     
     await wait(3000);
