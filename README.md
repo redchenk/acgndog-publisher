@@ -27,7 +27,7 @@ NODE_PATH=/usr/local/lib/node_modules node publish.js
 
 脚本中已包含配置：
 - HALO_URL: https://www.redchenk.com
-- 登录凭据：redchenk / @Aa620880123
+- 登录凭据：你的 Halo 用户名 / 密码
 
 ## 去重机制
 

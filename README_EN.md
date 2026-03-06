@@ -27,7 +27,7 @@ NODE_PATH=/usr/local/lib/node_modules node publish.js
 
 Pre-configured in script:
 - HALO_URL: https://www.redchenk.com  
-- Login: redchenk / @Aa620880123
+- Login: your-username / your-password
 
 ## Deduplication
 
