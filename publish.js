@@ -81,6 +81,68 @@ async function getExistingTitles() {
   });
 }
 
+// 获取分类ID
+async function getCategoryId(categoryName) {
+  return new Promise((resolve) => {
+    const req = https.request({
+      hostname: 'www.redchenk.com', port: 443,
+      path: '/apis/api.console.halo.run/v1alpha1/categories',
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${HALO_TOKEN}` }
+    }, res => {
+      let b = '';
+      res.on('data', c => b += c);
+      res.on('end', () => {
+        try {
+          const data = JSON.parse(b);
+          if (data.items) {
+            for (const cat of data.items) {
+              if (cat.spec.displayName === categoryName) {
+                resolve(cat.metadata.name);
+                return;
+              }
+            }
+          }
+          resolve(null);
+        } catch(e) { resolve(null); }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.end();
+  });
+}
+
+// 获取标签ID
+async function getTagId(tagName) {
+  return new Promise((resolve) => {
+    const req = https.request({
+      hostname: 'www.redchenk.com', port: 443,
+      path: '/apis/api.console.halo.run/v1alpha1/tags',
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${HALO_TOKEN}` }
+    }, res => {
+      let b = '';
+      res.on('data', c => b += c);
+      res.on('end', () => {
+        try {
+          const data = JSON.parse(b);
+          if (data.items) {
+            for (const tag of data.items) {
+              if (tag.spec.displayName === tagName) {
+                resolve(tag.metadata.name);
+                return;
+              }
+            }
+          }
+          resolve(null);
+        } catch(e) { resolve(null); }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.end();
+  });
+}
+
 // 获取文章详情
 async function getDetail(url) {
   const br = await chromium.launch({ headless: true, executablePath: '/opt/google/chrome/chrome', args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] });
@@ -142,13 +204,13 @@ async function publish(article) {
     // 编辑器
     await p.click('[contenteditable="true"]'); await wait(1000);
     
-    // 内容
+    // 内容 - 原文链接使用超链接
     let content = article.title + '\n\n';
     if (article.author) content += article.author + '\n\n';
     content += '---\n\n';
     content += article.description + '\n\n';
     content += '---\n\n';
-    content += '原文链接：' + article.url;
+    content += '原文链接：<a href="' + article.url + '" target="_blank">' + article.url + '</a>';
     
     await p.keyboard.type(content, {delay: 10});
     console.log(`[${article.title}] 内容设置完成`);
@@ -167,6 +229,9 @@ async function publish(article) {
       console.log(`[${article.title}] 草稿保存成功! ID: ${pid}`);
       await setCoverApi(pid, article.cover);
       console.log(`[${article.title}] 封面图设置完成`);
+      // 设置分类和标签
+      await setCategoryAndTagsApi(pid);
+      console.log(`[${article.title}] 分类/标签设置完成`);
       // 保存到已发布列表
       savePublishedArticle(article.url);
     } else {
@@ -187,6 +252,47 @@ async function setCoverApi(postId, coverUrl) {
   return new Promise((resolve) => {
     const u = new URL('/apis/content.halo.run/v1alpha1/posts/' + postId, HALO_URL);
     const data = JSON.stringify([{op:'replace',path:'/spec/cover',value:coverUrl}]);
+    const req = https.request({
+      hostname: u.hostname, port: 443, path: u.pathname, method: 'PATCH',
+      headers: { 'Content-Type': 'application/json-patch+json', 'Authorization': `Bearer ${HALO_TOKEN}`, 'Content-Length': Buffer.byteLength(data) }
+    }, res => { let b = ''; res.on('data', c => b+=c); res.on('end', () => resolve(b)); });
+    req.on('error', () => resolve(null)); 
+    req.write(data); req.end();
+  });
+}
+
+// 设置分类和标签
+async function setCategoryAndTagsApi(postId) {
+  // 获取分类ID
+  const categoryId = await getCategoryId('文章');
+  // 获取标签ID
+  const tagId = await getTagId('资源共享');
+  
+  if (!categoryId && !tagId) {
+    console.log('分类/标签不存在，跳过');
+    return;
+  }
+  
+  const categories = categoryId ? [{ name: categoryId }] : [];
+  const tags = tagId ? [{ name: tagId }] : [];
+  
+  return new Promise((resolve) => {
+    const u = new URL('/apis/content.halo.run/v1alpha1/posts/' + postId, HALO_URL);
+    const patches = [];
+    
+    if (categoryId) {
+      patches.push({op: 'replace', path: '/spec/categories', value: categories});
+    }
+    if (tagId) {
+      patches.push({op: 'replace', path: '/spec/tags', value: tags});
+    }
+    
+    if (patches.length === 0) {
+      resolve(null);
+      return;
+    }
+    
+    const data = JSON.stringify(patches);
     const req = https.request({
       hostname: u.hostname, port: 443, path: u.pathname, method: 'PATCH',
       headers: { 'Content-Type': 'application/json-patch+json', 'Authorization': `Bearer ${HALO_TOKEN}`, 'Content-Length': Buffer.byteLength(data) }

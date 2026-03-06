@@ -40,8 +40,10 @@ On first run, it syncs existing article titles from Halo, then only publishes ne
 ## Output
 
 - Max 1 new draft article per run
-- Format: Title → Author → Description → Content → Source Link
+- Format: Title → Author → Description → Content → Source Link (hyperlink)
 - Cover image auto-set
+- Auto-set category: 文章
+- Auto-set tag: 资源共享
 
 ## Requirements
 
