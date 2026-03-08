@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 const HALO_URL = 'https://www.redchenk.com';
-const HALO_TOKEN = 'pat_eyJraWQiOiJFMDIxelh2WDlCS2o1RkpMLUh2TTVtc21DS1pLQ0psaV9QeEdxQlBZaDRBIiwiYWxnIjoiUlMyNTYifQ.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjkwOTAiLCJzdWIiOiJ1cHBlciIsImlhdCI6MTc3Mjc2NjAzNCwianRpIjoiZjM5MzEyMDEtYzc4Ni04MzMwLTQ4ZDAtNjBhZTU2NDY0YTQyIiwicGF0X25hbWUiOiJwYXQtOThycWRkc3IifQ.oTOR3QpWx6j0MFQ5gsTVW18z15CNTNTGwIxOTu3T45GQ6VYkjn96IdUGiW9JFzMq080k31kW0jXycfzY3LUD1AnSfwmhmuDDq2pIa0gkCMJtr_zvWpcJG6NyJpDpdbeqdtWggR1JdYz_JSNwvCnlu_M18CVoj1v4rE57lUpdCakYXy3EVkPQk3oaSMKnmXl0IuHJN2YO-fi5lVsyqJNqgbiBK37T8ewj0UcIxSSIeB029BEl31Q1ThfoADEuf1AzXG_Ve3WhJ8V7g5F_oT9fUSDJg2zBFDnm9oaZyoOpIpid2CVYMDRBqCNxZghNijiFUtxZyLPvSSH3hIhN6VaiCyuoU1wvdjCTVo6LeCA4cEn08xvydUR1p_rg6wyiO8J7h4onBn-UxoxVaHKSuHPI-r4885jzhA58ZRQaV29ByMdoIYzjAESnXUz2KgxzkhQbhrE5qFEhEF0vJkqR0yIC0SsGoV15yiXlmtR5-0vISFpDkVMeVbWz3CFQgG5ca_5X7JwjIlvTUK6LoBaivv5S-WL9SCi-JzfXKxdyYbwdAaM9NRNATxm_YrcK2RRkMVltnYK2tRm7ZNsO1dqelDCUSTmEGFnYnu7BFZHUtp2mQcIubbJ6XXiH5xSmWyAHGoGizTRyNQPkxlCjey5QTovGqjrsb-l-dL_UsAwm1Tv3aDY';
+const HALO_TOKEN = 'pat_eyJraWQiOiJFMDIxelh2WDlCS2o1RkpMLUh2TTVtc21DS1pLQ0psaV9QeEdxQlBZaDRBIiwiYWxnIjoiUlMyNTYifQ.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjkwOTAiLCJzdWIiOiJyZWRjaGVuayIsImlhdCI6MTc3Mjg1MDQ5MywianRpIjoiOTAzYjE5ZTQtNTVhNS1hOGUzLTVlYjUtODc1MmJkOWJjODFjIiwicGF0X25hbWUiOiJwYXQtZnFpaW1kNTAifQ.NHcXkMYWBTnbcnVivhYTPZ__DbLrbSFgubauCFYiecFjKjnZ9yufu12FfZAlLzs7Ojzv4VoTBpbDcVTUXIo7urIgtXeZNp_u0evac0nolMiOfteqjaSeoLGYoGGFtI_XEJFubLMFxCLjyIEZPrLdTZ4WBUPs9XWJFRKVXxUOi4eUDN_0-jU-lKjETgATToGBaMKZNeNAmzXfjCgJl6Y19fC2nIJIO5GA-9jtbfFS-lGgWtrdj7vBYId0ogleHxtFbYS52YnE0GCxZrmLHKnx1oS5Q-pqyOxxZsCDtCKK297t6DNdohOjelgLibiyLdjJeWks0T-O58C2V37E6-iLUc_WJOqiLBNKToaIYJPytW5dthVjc92eu72jkbf4V822Wi41_Edo9zbAJ6BkKwYfzUhlpq8u-R7gwxH2LMDairku5yisO53JeB7lNWEBKDW1epVhXor04BiSvNbWcwDEHwvNnF3_agunAj_HrruJrn3hZaGvFBHmSp0SWi_zrq8nQTtRft3ZyCYt54O3IJnZH1y_vwKIstB_2izqNDYkuvMpiBlqweetGEd7a9Em8eFa7RmJOJTRcPyl2zhhJhiKikzY5TrpP_lD9tU0XMI1wsOSKoPu4MJtEmhGI6UXr5bY3ZYuIAzhtMVT_lPnpTeTqUNyRrP7BBP_9KHjAbpQutk';
 const SOURCE_URL = 'https://www.acgndog.com';
 
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
@@ -77,6 +77,44 @@ async function getExistingTitles() {
   });
 }
 
+// 获取下载链接
+function getDownloadLinks(postId) {
+  return new Promise((resolve) => {
+    const cookie = 'server_name_session=373bf48a7f53b328a2cd59d8ab6a3649';
+    const referer = 'https://www.acgndog.com/' + postId + '.html';
+    
+    const url = '/wp-admin/admin-ajax.php?action=d2e5b56b75e2f3d4ab412a6d9561faee&44b4443eef5d03373d87fceca1ac7f92%5Btype%5D=getStorage&44b4443eef5d03373d87fceca1ac7f92%5Bid%5D=' + postId;
+    
+    const options = {
+      hostname: 'www.acgndog.com',
+      path: url,
+      method: 'GET',
+      headers: {
+        'Cookie': cookie,
+        'Referer': referer,
+        'User-Agent': 'Mozilla/5.0'
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          const items = json.customPostStorage?.items || [];
+          resolve(items);
+        } catch(e) {
+          resolve([]);
+        }
+      });
+    });
+    
+    req.on('error', () => resolve([]));
+    req.end();
+  });
+}
+
 // 清理文本
 function cleanText(text) {
   if (!text) return '';
@@ -85,6 +123,10 @@ function cleanText(text) {
 
 // 获取文章详情
 async function getDetail(url) {
+  // 从URL提取文章ID
+  const urlMatch = url.match(/\/(\d+)\.html/);
+  const postId = urlMatch ? urlMatch[1] : null;
+  
   const br = await chromium.launch({ headless: true, executablePath: '/opt/google/chrome/chrome', args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] });
   const p = await br.newPage();
   try {
@@ -116,6 +158,15 @@ async function getDetail(url) {
     });
     
     article.url = url;
+    article.postId = postId;
+    
+    // 获取下载链接
+    if (postId) {
+      console.log(`  [${article.title}] 获取下载链接...`);
+      const downloadLinks = await getDownloadLinks(postId);
+      article.downloadLinks = downloadLinks;
+    }
+    
     await br.close();
     return article;
   } catch(e) { 
@@ -153,7 +204,20 @@ async function publish(article) {
     content += '------------------------\n\n';
     content += cleanText(article.description) + '\n\n';
     content += '------------------------\n\n';
-    content += '原文链接：' + article.url;
+    
+    // 添加下载链接（替换原文链接）
+    if (article.downloadLinks && article.downloadLinks.length > 0) {
+      content += '📥 下载链接：\n\n';
+      article.downloadLinks.forEach((link, idx) => {
+        content += `${idx + 1}. ${link.name}: ${link.url}`;
+        if (link.downloadPwd) {
+          content += ` 提取码: ${link.downloadPwd.trim()}`;
+        }
+        content += '\n';
+      });
+    } else {
+      content += '原文链接：' + article.url;
+    }
     
     await editor.fill(content);
     console.log(`[${article.title}] 内容设置完成`);
@@ -317,7 +381,7 @@ async function getList() {
 }
 
 async function main() {
-  console.log('=== 开始爬取任务 ===', new Date().toISOString());
+  console.log('=== 开始爬取任务 ===', new Date().toLocaleString("zh-CN", {timeZone: "Asia/Shanghai"}));
   
   console.log('检查已发布文章...');
   const publishedUrls = getPublishedArticles();
